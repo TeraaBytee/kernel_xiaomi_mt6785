@@ -38,8 +38,12 @@
 *.symtypes
 *.tar
 *.xz
+*.zip
 Module.symvers
 modules.builtin
+
+# Out files
+out/
 
 #
 # Top-level generic files
