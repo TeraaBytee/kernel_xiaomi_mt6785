@@ -1,4 +1,18 @@
 #!/bin/bash
+#
+#   Copyright 2022 TeraaBytee
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
 
 MainPath=$(pwd)
 Clang=$(pwd)/../clang
@@ -9,25 +23,26 @@ AnyKernel=$(pwd)/../AnyKernel3
 # Telegram message
 # echo 'your bot token' > .bot_token
 # echo 'your group or channel chat id' > .chat_id
-if [[ -e .bot_token && -e .chat_id ]]; then
-    BOT_TOKEN=$(cat .bot_token)
-    CHAT_ID=$(cat .chat_id)
-    UT=1
-else
-    UT=0
-fi
+BOT_TOKEN="$(cat .bot_token)"
+CHAT_ID="$(cat .chat_id)"
 
-alias msg='curl -X POST https://api.telegram.org/bot$BOT_TOKEN/sendMessage \
-            -d chat_id=$CHAT_ID \
-            -d disable_web_page_preview=true \
-            -d parse_mode=html'
+msg(){
+    curl -X POST https://api.telegram.org/bot$BOT_TOKEN/sendMessage \
+    -d disable_web_page_preview=true \
+    -d chat_id=$CHAT_ID \
+    -d parse_mode=html \
+    -d text="$text"
+}
 
-alias upload='curl -F chat_id=$CHAT_ID \
-            -F document=@$FILE \
-            -F parse_mode=markdown https://api.telegram.org/bot$BOT_TOKEN/sendDocument'
+upload(){
+    curl -F parse_mode=markdown https://api.telegram.org/bot$BOT_TOKEN/sendDocument \
+    -F chat_id=$CHAT_ID \
+    -F document=@$FILE \
+    -F caption="$caption"
+}
 
-if [ $UT = 1 ]; then
-    msg -d text="Start to building Kernel"
+if [[ ! -z $BOT_TOKEN && ! -z $CHAT_ID ]]; then
+    text="Time to building kernel" msg
 fi
 
 # Make zip
@@ -48,16 +63,19 @@ MakeZip(){
 }
 
 # Clone Compiler
-if [ $UT = 1 ]; then
-    msg -d text="Clone Compiler . . ."
+if [[ ! -z $BOT_TOKEN && ! -z $CHAT_ID ]]; then
+    text="<code>clone compiler . . .</code>" msg
 fi
 if [ ! -d $Clang ]; then
-    git clone --depth=1 https://github.com/TeraaBytee/google-clang -b 11.0.2 $Clang
+    git clone --depth=1 https://github.com/TeraaBytee/aosp-clang -b r416183b1 $Clang
 else
     cd $Clang
-    git fetch origin 11.0.2
-    git checkout 11.0.2
-    git reset --hard origin/11.0.2
+    git fetch origin r416183b1
+    git checkout FETCH_HEAD
+    git branch -D r416183b1
+    git branch r416183b1
+    git checkout r416183b1
+    git reset --hard origin/r416183b1
     cd $MainPath
 fi
 if [ ! -d $Gcc64 ]; then
@@ -65,6 +83,9 @@ if [ ! -d $Gcc64 ]; then
 else
     cd $Gcc64
     git fetch origin master
+    git checkout FETCH_HEAD
+    git branch -D master
+    git branch master
     git checkout master
     git reset --hard origin/master
     cd $MainPath
@@ -74,6 +95,9 @@ if [ ! -d $Gcc ]; then
 else
     cd $Gcc
     git fetch origin master
+    git checkout FETCH_HEAD
+    git branch -D master
+    git branch master
     git checkout master
     git reset --hard origin/master
     cd $MainPath
@@ -83,7 +107,7 @@ ClangVersion=$($Clang/bin/clang --version | grep version)
 # Kernel config
 export ARCH=arm64
 export SUBARCH=arm64
-export KBUILD_BUILD_HOST="$(hostname)"
+export KBUILD_BUILD_HOST="KentangGaming"
 export KBUILD_BUILD_USER="TeraaBytee"
 Defconfig="begonia_user_defconfig"
 Branch=$(git branch | grep '*' | awk '{ print $2 }')
@@ -96,22 +120,27 @@ KERNEL_VERSION="4.14.$(cat "$MainPath/Makefile" | grep "SUBLEVEL =" | sed 's/SUB
 Compiler=CLANG
 rm -rf out
 
-if [ $UT = 1 ]; then
-    msg -d text="
-<b>Device</b>: <code>Redmi Note 8 Pro [BEGONIA]</code>
-<b>Branch</b>: <code>$Branch</code>
-<b>User</b>: <code>$KBUILD_BUILD_USER</code>
-<b>Host</b>: <code>$KBUILD_BUILD_HOST</code>
-<b>Kernel name</b>: <code>$KERNEL_NAME</code>
-<b>Kernel version</b>: <code>$KERNEL_VERSION</code>
-<b>Compiler</b>:%0A<code>$ClangVersion</code>
-<b>Changelogs</b>:%0A<code>$Changelogs</code>"
+if [[ ! -z $BOT_TOKEN && ! -z $CHAT_ID ]]; then
+    text=$(
+    printf "[============ <b>Kernel Update</b> ============]\n\n";
+    printf "<b>Device</b>: <code>Redmi Note 8 Pro [BEGONIA]</code>\n";
+    printf "<b>Branch</b>: <code>$Branch</code>\n";
+    printf "<b>Build User</b>: <code>$KBUILD_BUILD_USER</code>\n"
+    printf "<b>Build Host</b>: <code>$KBUILD_BUILD_HOST</code>\n"
+    printf "<b>Kernel Name</b>: <code>$KERNEL_NAME</code>\n";
+    printf "<b>Kernel Version</b>: <code>$KERNEL_VERSION</code>\n";
+    printf "<b>Compiler</b>:\n<code>$ClangVersion</code>\n\n";
+    printf "<b>Changelogs</b>:\n<code>$Changelogs</code>\n\n";
+    printf "[============ <b>Kernel Update</b> ============]\n";
+    ) msg
 fi
 
+# Building
+if [[ ! -z $BOT_TOKEN && ! -z $CHAT_ID ]]; then
+    text="<code>building . . .</code>" msg
+fi
 TIME=$(date +"%d%m")
 BUILD_START=$(date +"%s")
-
-# Building
 make  -j$(nproc --all)  O=out $Defconfig
 exec 2> >(tee -a out/error.log >&2)
 make  -j$(nproc --all)  O=out \
@@ -135,16 +164,24 @@ BUILD_TIME="$((BUILD_DIFF / 60)) minute(s) and $((BUILD_DIFF % 60)) second(s)"
 
 if [ -e $MainPath/out/arch/arm64/boot/Image.gz-dtb ]; then
     MakeZip
-    if [ $UT = 1 ]; then
-        FILE=$(echo *$Compiler*$HeadCommit.zip)
-        upload -F caption="Build success in: $BUILD_TIME"
+    if [[ ! -z $BOT_TOKEN && ! -z $CHAT_ID ]]; then
+        FILE=$(echo $MainPath/*$Compiler*$HeadCommit.zip)
+        caption="$(date)" upload
+        text=$(
+        printf "<b>Build success in</b>:\n<code>$BUILD_TIME</code>\n\n";
+        printf "[========= <b>Joss Gandos</b> =========]\n";
+        ) msg
     else
         echo "Build success in: $BUILD_TIME"
     fi
 else
-    if [ $UT = 1 ]; then
+    if [[ ! -z $BOT_TOKEN && ! -z $CHAT_ID ]]; then
         FILE="out/error.log"
-        upload -F caption="Build fail in: $BUILD_TIME"
+        caption="$(date)" upload
+        text=$(
+        printf "<b>Build fail in</b>:\n<code>$BUILD_TIME</code>\n\n";
+        printf "[======= <b>Yahaha Wahyu</b> =======]\n";
+        ) msg
     else
         echo "Build fail in: $BUILD_TIME"
     fi
